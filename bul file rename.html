@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk File Extension Change</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+            background-color: #30bbcf;
+            padding: 15px 0;
+            margin: 0;
+            width: 100%;
+            text-align: center;
+            position: flex;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid #ddd;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #333;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            margin-right: 10px;
+            margin-left: 10px;
+        }
+
+        input[type="text"] {
+            padding: 12px;       
+            margin-top: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 70%;
+            max-width: 400px;
+        }
+
+        button {
+            padding: 15px 25px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        ul {
+            margin-top: 20px;
+            list-style: none;
+            padding: 0;
+            text-align: left;
+        }
+
+        li {
+            margin-bottom: 15px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        #fileInputContainer {
+            border: 2px dashed #aaa;
+            padding: 40px;
+            cursor: pointer;
+            border-radius: 10px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 40px;
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        #fileListContainer,
+        #filePreviewContainer,
+        #downloadButtonContainer,
+        #progressBarContainer {
+            display: none;
+        }
+
+        #fileListContainer {
+            margin-top: 20px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        #filePreviewContainer {
+            margin-top: 20px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: flex;
+            max-width: 80%;
+            text-align: center;
+        }
+
+        #previewTitle {
+            font-weight: bold;
+        }
+
+        #progressBarContainer {
+            margin-top: 20px;
+            width: 80%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        #progressBar {
+            height: 20px;
+            background-color: #ddd;
+            border-radius: 10px;
+        }
+
+        #progressBar {
+            width: 0%;
+            background-color: #4CAF50;
+            border-radius: 10px;
+        }
+
+        .checked {
+            color: #4CAF50;
+        }
+   
+        #customNamingConvention {
+            margin-top: 10px;
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+</head>
+<body>
+
+    <h1>- - - - Bulk File Extension Changer - - - -</h1>
+    
+    <div id="fileInputContainer" onclick="openFileInput()" ondragover="allowDrop(event)" ondrop="handleDrop(event)">
+        <label for="fileInput">Click or Drag & Drop to Select Files</label>
+        <input type="file" id="fileInput" webkitdirectory directory multiple onchange="displayFiles()">
+    </div>
+    
+    <input type="text" id="newExtension" placeholder="Enter new extension without dot (Example: jpg, png, txt)">
+
+    <!-- Updated naming convention input -->
+    <input type="text" id="customNamingConvention" placeholder="Enter Custom Name">
+
+    <div id="fileListContainer">
+        <h2>Select files to process:</h2>
+        <ul id="fileList"></ul>
+    </div>
+
+    <!-- Add a progress bar -->
+    <div id="progressBarContainer">
+        <div id="progressBar"></div>
+    </div>
+
+    <!-- Add a new div for file preview -->
+    <div id="filePreviewContainer">
+        <h2 id="previewTitle">Preview of Changes:</h2>
+        <ul id="filePreviewList"></ul>
+    </div>
+
+    <!-- Move the download button below the preview -->
+    <div id="downloadButtonContainer">
+        <button id="downloadButton" onclick="downloadZip()">Download Zip</button>
+    </div>
+
+    <script>
+        let zip = new JSZip();
+
+        function openFileInput() {
+            document.getElementById('fileInput').click();
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+            document.getElementById('fileInputContainer').style.backgroundColor = '#f9f9f9';
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            document.getElementById('fileInputContainer').style.backgroundColor = '#fff';
+
+            const items = event.dataTransfer.items;
+            const fileInput = document.getElementById("fileInput");
+            const fileList = document.getElementById("fileList");
+            fileList.innerHTML = "";
+
+            if (items.length === 0) {
+                alert("No files or folders selected.");
+                return;
+            }
+
+            for (let i = 0; i < items.length; i++) {
+                const entry = items[i].webkitGetAsEntry();
+                if (entry.isFile) {
+                    const listItem = document.createElement("li");
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.id = `file_${i}`;
+                    checkbox.checked = true; // Default checked state
+                    checkbox.addEventListener("change", updatePreview);
+                    const label = document.createElement("label");
+                    label.htmlFor = `file_${i}`;
+                    label.textContent = entry.name;
+
+                    listItem.appendChild(checkbox);
+                    listItem.appendChild(label);
+                    fileList.appendChild(listItem);
+                } else if (entry.isDirectory) {
+                    // Traverse the directory and add individual files
+                    traverseDirectory(entry.createReader(), i);
+                }
+            }
+        }
+
+        function traverseDirectory(reader, index) {
+            reader.readEntries(function (entries) {
+                if (entries.length > 0) {
+                    for (let i = 0; i < entries.length; i++) {
+                        const entry = entries[i];
+                        if (entry.isFile) {
+                            const listItem = document.createElement("li");
+                            const checkbox = document.createElement("input");
+                            checkbox.type = "checkbox";
+                            checkbox.id = `file_${index}_${i}`;
+                            checkbox.checked = true; // Default checked state
+                            checkbox.addEventListener("change", updatePreview);
+                            const label = document.createElement("label");
+                            label.htmlFor = `file_${index}_${i}`;
+                            label.textContent = entry.name;
+
+                            listItem.appendChild(checkbox);
+                            listItem.appendChild(label);
+                            document.getElementById("fileList").appendChild(listItem);
+                        } else if (entry.isDirectory) {
+                            // Recursively traverse subdirectories
+                            traverseDirectory(entry.createReader(), index);
+                        }
+                    }
+                    // Continue reading entries
+                    traverseDirectory(reader, index);
+                }
+            });
+        }
+
+        function displayFiles() {
+            const fileInput = document.getElementById("fileInput");
+            const fileList = document.getElementById("fileList");
+            fileList.innerHTML = "";
+
+            if (fileInput.files.length === 0) {
+                alert("Please select a directory.");
+                return;
+            }
+
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const file = fileInput.files[i];
+
+                const listItem = document.createElement("li");
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.id = `file_${i}`;
+                checkbox.checked = true; // Default checked state
+                checkbox.addEventListener("change", updatePreview);
+                const label = document.createElement("label");
+                label.htmlFor = `file_${i}`;
+                label.textContent = file.name;
+
+                listItem.appendChild(checkbox);
+                listItem.appendChild(label);
+                fileList.appendChild(listItem);
+            }
+
+            // Show file list container, download button, and file preview container
+            document.getElementById('fileListContainer').style.display = 'block';
+            document.getElementById('progressBarContainer').style.display = 'block';
+            document.getElementById('downloadButtonContainer').style.display = 'block';
+            document.getElementById('filePreviewContainer').style.display = 'block';
+
+            // Display selected files in the preview
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const fileInput = document.getElementById("fileInput");
+            const filePreviewList = document.getElementById("filePreviewList");
+            filePreviewList.innerHTML = "";
+
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const file = fileInput.files[i];
+                const oldName = file.name;
+                const newExtension = document.getElementById("newExtension").value;
+                const customNamingConvention = document.getElementById("customNamingConvention").value;
+
+                let newName;
+
+                if (customNamingConvention) {
+                    // Use custom naming convention if provided
+                    newName = `${customNamingConvention}${i + 1}.${newExtension}`;
+                } else {
+                    // Use the default renaming logic
+                    newName = `${oldName}.${newExtension}`;
+                }
+
+                const previewItem = document.createElement("li");
+                previewItem.innerHTML = `Original: ${oldName}<br>New: ${newName}`;
+
+                filePreviewList.appendChild(previewItem);
+            }
+        }
+
+        function downloadZip() {
+            const fileInput = document.getElementById("fileInput");
+            const newExtension = document.getElementById("newExtension").value;
+            const customNamingConvention = document.getElementById("customNamingConvention").value;
+            const checkboxes = document.querySelectorAll("input[type=checkbox]:checked");
+
+            if (checkboxes.length === 0 || !newExtension) {
+                alert("Please select files and enter a new extension.");
+                return;
+            }
+
+            // Show progress bar
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = '0%';
+            progressBarContainer.style.display = 'block';
+
+            // Calculate total progress steps
+            const totalSteps = checkboxes.length;
+
+            // Initialize progress counter
+            let progress = 0;
+
+            // Update progress bar on each file processed
+            function updateProgress() {
+                progress++;
+                const percentage = (progress / totalSteps) * 100;
+                progressBar.style.width = `${percentage}%`;
+
+                if (progress === totalSteps) {
+                    // Hide progress bar when done
+                    progressBarContainer.style.display = 'none';
+                }
+            }
+
+            for (let i = 0; i < checkboxes.length; i++) {
+                const checkbox = checkboxes[i];
+                const fileIndex = checkbox.id.split("_")[1];
+                const file = fileInput.files[fileIndex];
+
+                const oldName = file.name;
+                let newName = `${oldName}.${newExtension}`;
+
+				// Use custom naming convention if provided
+				if (customNamingConvention) {
+				newName = `${customNamingConvention}${i + 1}.${newExtension}`;
+}
+                // Add file to zip with the new name
+                zip.file(newName, file);
+                updateProgress();
+            }
+
+            zip.generateAsync({ type: "blob" }).then(function (content) {
+                const zipUrl = URL.createObjectURL(content);
+                const a = document.createElement("a");
+                a.href = zipUrl;
+                a.download = `${fileInput.files[0].webkitRelativePath.split("/")[0]}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            });
+        }
+    </script>
+</body>
+</html>
